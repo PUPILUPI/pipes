@@ -48,100 +48,117 @@
 				return mesh;
 			};
 			var textures = {};
-			var Pipe = function(scene, o){
-				var p = this;
-				p.pos = box.randomPoint();
-				p.o3d = new THREE.Object3D();
-				scene.add(p.o3d);
-				if(o.texture){
-					p.mat = new THREE.MeshLambertMaterial({
-						map: textures[o.texture]
-					});
-				}else{
-					var color = ~rand(0, 0xffffff);
-					var emissive = new THREE.Color(color).multiplyScalar(0.3);
-					p.mat = new THREE.MeshPhongMaterial({
-						specular: 0xa9fcff,
-						color: color,
-						emissive: emissive,
-						shininess: 100
-					});
-				}
-				var elbow;
-				p.update = function(){
-					var dist = Math.floor(rand(1,5))*50;
-					var newpos = p.pos.clone();
-					if(perchance(100/2)){
-						if(perchance(100/3)){
-							newpos.x += dist;
-						}else if(perchance(100/2)){
-							newpos.y += dist;
-						}else{
-							newpos.z += dist;
-						}
-					}else{
-						if(perchance(100/3)){
-							newpos.x -= dist;
-						}else if(perchance(100/2)){
-							newpos.y -= dist;
-						}else{
-							newpos.z -= dist;
-						}
-					}
-					if(!box.containsPoint(newpos)){
-						return;
-					}
-					//pipe
-					var cylinder = cylinderBetweenPoints(p.pos, newpos, p.mat);
-					cylinder.overdraw = true;
-					p.o3d.add(cylinder);
+var Pipe = function(scene, o){
+  var p = this;
+  p.pos = box.randomPoint();
+  p.o3d = new THREE.Object3D();
+  scene.add(p.o3d);
 
-					if(elbow){
-						//elbow.rotateX(Math.PI);
-						//elbow.rotation = ;
-						p.o3d.add(elbow);
-					}
+  if(o.texture){
+    p.mat = new THREE.MeshLambertMaterial({
+      map: textures[o.texture]
+    });
+  }else{
+    var color = ~rand(0, 0xffffff);
+    var emissive = new THREE.Color(color).multiplyScalar(0.3);
+    p.mat = new THREE.MeshPhongMaterial({
+      specular: 0xa9fcff,
+      color: color,
+      emissive: emissive,
+      shininess: 100
+    });
+  }
 
-					//joint
-					if(perchance(0.5+options.TEAPOTS*5)){
-						//THREE.TeapotGeometry=function(size,segments,bottom,lid,body,fitLid,blinn);
-						//var tptex = textures[o.texture].clone();
-						//tptex.repeat.set(1,1);
-						var teapot = new THREE.Mesh(
-							new THREE.TeapotGeometry(15, true, true, true, true, true),
-							p.mat
-							//new THREE.MeshLambertMaterial({map: tptex})
-						);
-						teapot.position = p.pos.clone();
-						teapot.rotation.x = Math.floor(rand(0,50))*Math.PI/2;
-						teapot.rotation.y = Math.floor(rand(0,50))*Math.PI/2;
-						teapot.rotation.z = Math.floor(rand(0,50))*Math.PI/2;
-						p.o3d.add(teapot);
-					}else if(perchance(20)){
-						//ball
-						var ball = new THREE.Mesh(new THREE.SphereGeometry(15, 8, 8), p.mat);
-						ball.position = p.pos.clone();
-						p.o3d.add(ball);
-					}else{
-						//elbow
-						//var r = 20;
-						//elbow = new THREE.Mesh(new THREE.TorusGeometry(r, 10, 8, 8, Math.PI/2), p.mat);
-						//elbow.position = p.pos.clone();
+  // Параметры плавности
+  var stepCount = 5; // количество маленьких сегментов на один большой сегмент
+  var currentStep = 0;
+  var startPos = p.pos.clone();
+  var endPos = null;
+  var segmentVector = null;
 
-						//elball
-						var elball = new THREE.Mesh(new THREE.SphereGeometry(10, 8, 8), p.mat);
-						elball.position = p.pos.clone();
-						p.o3d.add(elball);
-					}
+  // Функция выбора нового сегмента
+  function chooseNewSegment() {
+    var dist = Math.floor(rand(1,5))*50;
+    var newpos = p.pos.clone();
+    if(perchance(100/2)){
+      if(perchance(100/3)){
+        newpos.x += dist;
+      }else if(perchance(100/2)){
+        newpos.y += dist;
+      }else{
+        newpos.z += dist;
+      }
+    }else{
+      if(perchance(100/3)){
+        newpos.x -= dist;
+      }else if(perchance(100/2)){
+        newpos.y -= dist;
+      }else{
+        newpos.z -= dist;
+      }
+    }
+    if(!box.containsPoint(newpos)){
+      // если вышли за границы, пробуем снова
+      return chooseNewSegment();
+    }
+    return newpos;
+  }
 
-					//finish
-					p.pos = newpos;
+  // Инициализация первого сегмента
+  endPos = chooseNewSegment();
+  segmentVector = new THREE.Vector3().subVectors(endPos, startPos).divideScalar(stepCount);
 
-				};
-				p.clear = function(){
-					scene.remove(p.o3d);
-				};
-			};
+  p.update = function(){
+    if(currentStep >= stepCount){
+      // Начинаем новый сегмент
+      startPos = endPos.clone();
+      endPos = chooseNewSegment();
+      segmentVector = new THREE.Vector3().subVectors(endPos, startPos).divideScalar(stepCount);
+      currentStep = 0;
+    }
+
+    var from = startPos.clone().add(segmentVector.clone().multiplyScalar(currentStep));
+    var to = startPos.clone().add(segmentVector.clone().multiplyScalar(currentStep+1));
+
+    var cylinder = cylinderBetweenPoints(from, to, p.mat);
+    cylinder.overdraw = true;
+    p.o3d.add(cylinder);
+
+    // Добавляем суставы / шарики / чайники только на начало сегмента, как в оригинале
+    if(currentStep === 0){
+      if(perchance(0.5 + options.TEAPOTS*5)){
+        var teapot = new THREE.Mesh(
+          new THREE.TeapotGeometry(15, true, true, true, true, true),
+          p.mat
+        );
+        teapot.position = startPos.clone();
+        teapot.rotation.x = Math.floor(rand(0,50))*Math.PI/2;
+        teapot.rotation.y = Math.floor(rand(0,50))*Math.PI/2;
+        teapot.rotation.z = Math.floor(rand(0,50))*Math.PI/2;
+        p.o3d.add(teapot);
+      } else if(perchance(20)){
+        var ball = new THREE.Mesh(new THREE.SphereGeometry(15, 8, 8), p.mat);
+        ball.position = startPos.clone();
+        p.o3d.add(ball);
+      } else {
+        var elball = new THREE.Mesh(new THREE.SphereGeometry(10, 8, 8), p.mat);
+        elball.position = startPos.clone();
+        p.o3d.add(elball);
+      }
+    }
+
+    currentStep++;
+    // Обновляем позицию трубы после завершения всех маленьких шагов
+    if(currentStep === stepCount){
+      p.pos = endPos.clone();
+    }
+  };
+
+  p.clear = function(){
+    scene.remove(p.o3d);
+  };
+};
+
 
 
 			var pipes = [];
@@ -175,6 +192,8 @@
 
 			// this function is executed on each animation frame
 			var clearing = false;
+			let frameCount = 0;
+			let updateInterval = 5;
 			function animate(){
 				if(options.texture && !textures[options.texture]){
 					var t = THREE.ImageUtils.loadTexture(options.texture);
@@ -184,7 +203,7 @@
 				}
 				// update
 				time++;
-				if (!clearing && (time > 800)) {
+				if (!clearing && (time > 1500)) {
 					clearing = true;
 					var t = (time>504309) ? 100 : 2000;
 					renderer.domElement.style.transition =
