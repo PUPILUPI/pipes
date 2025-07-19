@@ -17,11 +17,11 @@
 		<meta name="viewport" content="width=device-width, user-scalable=no">
 	</head>
 	<body>
-    <div style="position:fixed; top: 10px; left: 10px; z-index: 1">
-      <label for="speed" style="color: white;">speed</label>
-      <input type="range" name="speed" min="1" step="1" default="10" max="100">
-      <a href="http://github.com/reimertz/pipes" style="color: white;">source code</a>
-    </div>
+<!--    <div style="position:fixed; top: 10px; left: 10px; z-index: 1">-->
+<!--      <label for="speed" style="color: white;">speed</label>-->
+<!--      <input type="range" name="speed" min="1" step="1" value="35" max="100">-->
+<!--      <a href="http://github.com/reimertz/pipes" style="color: white;">source code</a>-->
+<!--    </div>-->
 		<script>
     var speed = 1;
 			var box = new THREE.Box3(
@@ -184,7 +184,7 @@
 				}
 				// update
 				time++;
-				if(!clearing && ((perchance(1) && time>200) || (time>5000))){
+				if (!clearing && (time > 800)) {
 					clearing = true;
 					var t = (time>504309) ? 100 : 2000;
 					renderer.domElement.style.transition =
@@ -229,7 +229,7 @@
 
 				renderer.render(scene, camera);
 
-        speed = parseInt(document.querySelector('input[name="speed"]').value);
+        speed = 35;
         setTimeout( function() {
           requestAnimationFrame( animate );
         }, 1000 / speed );
